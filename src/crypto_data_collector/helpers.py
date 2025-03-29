@@ -26,17 +26,16 @@ class ConfigHandler:
     def __init__(self, config_path=None):
         self.config=None
         self.config_path=config_path
-        self.load_config(self.config_path)
+        if self.config_path is not None:
+            self.load_config(self.config_path)
+        else:
+            self.generate_config()
 
     def load_config(self, config_path=None):
         if config_path is None:
             current_script_path = Path(__file__).resolve()
             project_root = current_script_path.parent.parent
-            print(project_root)
             config_path = project_root / 'config' / 'config.yaml'
-        
-        print("Current script path: ", current_script_path)    
-        print("Config Path: ", config_path)
         with open(config_path, 'r') as file:
             config = yaml.safe_load(file)
             self.config = config
@@ -49,75 +48,83 @@ class ConfigHandler:
         else:
             return self.config[section]
 
-    def generate_config(self, load_test=False):
+    def generate_config(self):
         """
         Generates a default config
         """
-        current_script_path = Path(__file__).resolve()
-        project_root = current_script_path.parent.parent
-        config_path = project_root / 'config' / 'config.yaml'
+        #current_script_path = Path(__file__).resolve()
+        #project_root = current_script_path.parent.parent
+        #config_path = project_root / 'config' / 'config.yaml'
+        # All overrides are held in here
         data = {
-            "exchanges":{
-                "binance":{
-                    "properties":{
-                        "enableRateLimit": True,
-                        "async_support": True,
-                        "newUpdates": True,
-                        "verbose": False}
-                        ,
-                    "symbols":{
-                        "BTC/USD:BTC":{
-                            "streams":[
-                                {"watchOHLCV":     {"options":{} }},
-                                {"watchTicker":    {"options":{} }},
-                                {"watchTrades":    {"options":{} }},
-                                {"watchOrderBook": {"options":{} }}
-                            ]
-                        },
-                        "BTC/USDT:USDT":{
-                            "streams":[
-                                {"watchOHLCV":     {"options":{} }},
-                                {"watchTicker":    {"options":{} }},
-                                {"watchTrades":    {"options":{} }},
-                                {"watchOrderBook": {"options":{} }}
-                            ]
-                        }
-                    }
+            "consumers": {
+                "archival_storage": {
+                    "valid_streams": ["orderbook", "trades"]
                 },
-                "bitmex":{
-                    "properties":{
+                "redis_db": None
+            },
+            "exchanges": {
+                "binance": {
+                    "properties": {
                         "enableRateLimit": True,
                         "async_support": True,
                         "newUpdates": True,
                         "verbose": False,
-                        "timeout":1000}
-                        ,
-                    "symbols":{
-                        "BTC/USD:BTC":{
-                            "streams":[
-                                {"watchOHLCV":     {"options":{} }},
-                                {"watchTicker":    {"options":{} }},
-                                {"watchTrades":    {"options":{} }},
-                                {"watchOrderBook": {"options":{} }}
+                        "timeout": 10000,
+                        "options": {}
+                    },
+                    "symbols": {
+                        "BTC/USD:BTC": {
+                            "streams": [
+                                {"watchOHLCV": {"options": {}}},
+                                {"watchTicker": {"options": {}}},
+                                {"watchTrades": {"options": {}}},
+                                {"watchOrderBook": {"options": {}}}
                             ]
                         },
-                        "BTC/USDT:USDT":{
-                            "streams":[
-                                {"watchOHLCV":     {"options":{} }},
-                                {"watchTicker":    {"options":{} }},
-                                {"watchTrades":    {"options":{} }},
-                                {"watchOrderBook": {"options":{} }}
+                        "BTC/USDT:USDT": {
+                            "streams": [
+                                {"watchOHLCV": {"options": {}}},
+                                {"watchTicker": {"options": {}}},
+                                {"watchTrades": {"options": {}}},
+                                {"watchOrderBook": {"options": {}}}
+                            ]
+                        }
+                    }
+                },
+                "bitmex": {
+                    "properties": {
+                        "enableRateLimit": True,
+                        "async_support": True,
+                        "newUpdates": True,
+                        "verbose": False,
+                        "timeout": 10000
+                    },
+                    "symbols": {
+                        "BTC/USD:BTC": {
+                            "streams": [
+                                {"watchOHLCV": {"options": {}}},
+                                {"watchTicker": {"options": {}}},
+                                {"watchTrades": {"options": {}}},
+                                {"watchOrderBook": {"options": {}}}
+                            ]
+                        },
+                        "BTC/USDT:USDT": {
+                            "streams": [
+                                {"watchOHLCV": {"options": {}}},
+                                {"watchTicker": {"options": {}}},
+                                {"watchTrades": {"options": {}}},
+                                {"watchOrderBook": {"options": {}}}
                             ]
                         }
                     }
                 }
             }
         }
-        if load_test:
-            return data
-        else:
-            with open(config_path, 'w') as file:
-                yaml.dump(data=data, stream=file, default_flow_style=False)
+
+        #with open(config_path, 'w') as file:
+        #    yaml.dump(data=data, stream=file, default_flow_style=False)
+        self.config = data
 
 def load_test():
     # Adds many symbols and exchanges to see how my script handles it

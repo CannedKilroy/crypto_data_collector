@@ -7,11 +7,6 @@ async def data_producer(
     stream_name:str,
     stream_options: dict[str, any],
     key_str:str):
-    """
-    TODO:
-    Decouple producer from consumer. So the args it return put into a dict
-    or something so i dont need keyword positions unpacking
-    """
     while True:
         data = await stream_method(symbol_name, **stream_options)
         now_ms = int(datetime.datetime.now(datetime.UTC).timestamp() * 1000)

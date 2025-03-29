@@ -41,10 +41,10 @@ import logging
 
 from typing import List, Callable, Union, Tuple, Optional
 
-from .src.storage import Trades, Ticker, OHLCV, Orderbook
-from .src.helpers import ConfigHandler, redis_connector
-from .src.consumer import Consumer
-from .src.producer import data_producer, create_producers
+from .storage import Trades, Ticker, OHLCV, Orderbook
+from .helpers import ConfigHandler, redis_connector
+from .consumer import Consumer
+from .producer import data_producer, create_producers
 
 async def initialize_exchanges(
     config: dict) -> Tuple[dict[str, ccxt.pro.Exchange], dict[str, ccxt.pro.Exchange]]:
@@ -110,7 +110,9 @@ async def main():
     conn = redis_connector()
 
     config_handler = ConfigHandler()
+    config_handler.generate_config()
     config = config_handler.get_config()
+    
     exchange_objects = await initialize_exchanges(config=config)
 
     data_queue = asyncio.Queue()
@@ -127,9 +129,8 @@ async def main():
         )
     
     # Create Consumer
-    consumer_config = config_handler.get_config(section="consumers")
-    consumer = Consumer(consumer_config=consumer_config)
-    consumers.append(consumer.consumer_delegator(config=config, data_queue=data_queue))
+    consumer = Consumer()
+    consumers.append(consumer.consumer_delegator(data_queue=data_queue))
 
     try:          
         async with asyncio.TaskGroup() as tg:

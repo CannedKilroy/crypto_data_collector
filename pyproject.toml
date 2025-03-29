@@ -1,12 +1,17 @@
 [tool.poetry]
-name = "data-pipeline"
+name = "crypto_data_collector"
 version = "0.1.0"
 description = "Crypto Data pipeline"
 authors = ["CannedKilroy <GenericArt@protonmail.com>"]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.12"
+ccxt = "^4.4.69"
+redis = "^5.2.1"
+redis-om = "^0.3.3"
+pyyaml = "^6.0.2"
 
 
 [build-system]
