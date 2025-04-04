@@ -1,37 +1,3 @@
-"""
-run from project root
-poetry run python -m app.data_pipeline.main
-
-Did: Remove logging
-Idea: Type hinting by giving example
-
-Double source of truth
-:::::: TODO :::::::::::::::
-0. Move main out of data_producer
-1. Split code up now. Different files
-2. Split up initializing exchanges
-3. Logging
-4. Setup the basic flask front end, to make sure it can interface with
-5. Add other streams like open interest
-6. Clean up imports and unused code
-7. Optimize redis and figure out thread, conn pooling, cluster, async etc
-   the way i have implemented redis storage.
-- GO through redis datatypes throughly and
-  learn more before hodepodging stuff together
-- Ask first what traders ned
-- Priority queue for first order data
-- create standalone function that verifys a config
-  then just loop through it. This allows me to add more
-  exchanges and symbols on the fly later.
-- Breakup initialize exchanges
-- Second data consumer that writes to archival
-  . Does not go through redis
-- Break try catch running streams into own function
-- Check how i injected meta data like exchange and symbol
-on the other one, as some streams dont have that but i need it
-- Implement exchange / ticker etc to check archival storage
-"""
-
 import sys
 import ccxt.pro
 import asyncio
@@ -41,10 +7,9 @@ import logging
 
 from typing import List, Callable, Union, Tuple, Optional
 
-from .storage import Trades, Ticker, OHLCV, Orderbook
-from .helpers import ConfigHandler, redis_connector
-from .consumer import Consumer
-from .producer import data_producer, create_producers
+from crypto_data_collector.helpers import ConfigHandler
+from crypto_data_collector.consumer import Consumer
+from crypto_data_collector.producer import data_producer, create_producers
 
 async def initialize_exchanges(
     config: dict) -> Tuple[dict[str, ccxt.pro.Exchange], dict[str, ccxt.pro.Exchange]]:
@@ -106,9 +71,6 @@ async def initialize_exchanges(
 
 
 async def main():
-    print("DATA PIPELINE WRUNNING")
-    conn = redis_connector()
-
     config_handler = ConfigHandler()
     config_handler.generate_config()
     config = config_handler.get_config()
@@ -128,11 +90,11 @@ async def main():
         producers=producers
         )
     
-    # Create Consumer
+    # Create Consumers
     consumer = Consumer()
     consumers.append(consumer.consumer_delegator(data_queue=data_queue))
 
-    try:          
+    try:
         async with asyncio.TaskGroup() as tg:
             for producer in producers:
                 tg.create_task(producer)
@@ -143,8 +105,7 @@ async def main():
     finally:
         for exchange_name, exchange in exchange_objects.items():
             await exchange.close()
-        conn.connection_pool.close()
-        sys.exit(" Bye Bye ")        
+        sys.exit(" Bye Bye ")
 
 if __name__ == "__main__":
     asyncio.run(main())

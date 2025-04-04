@@ -3,26 +3,7 @@ from pathlib import Path
 import yaml
 import redis
 
-
-def redis_connector():
-    conn = redis.Redis(
-    db=0,
-    host = "localhost",
-    decode_responses=True,
-    retry_on_timeout=True)
-    
-    if conn.ping() is not True:
-        raise Exception("You done goofed")
-    else:
-        conn.flushdb()
-    return conn
-
-
 class ConfigHandler:
-    """
-    Loads config on initialization
-    Can also reload config and call again
-    """
     def __init__(self, config_path=None):
         self.config=None
         self.config_path=config_path
@@ -125,11 +106,3 @@ class ConfigHandler:
         #with open(config_path, 'w') as file:
         #    yaml.dump(data=data, stream=file, default_flow_style=False)
         self.config = data
-
-def load_test():
-    # Adds many symbols and exchanges to see how my script handles it
-    pass
-
-
-if __name__ == "__main__":
-    versions()
