@@ -1,6 +1,8 @@
 import pytest
 
-valid_config = {
+@pytest.fixture
+def valid_config():
+    return {
     "consumers": {
         "archival_storage": {
             "valid_streams": ["orderbook", "trades"]

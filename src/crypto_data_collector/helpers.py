@@ -2,6 +2,7 @@
 from pathlib import Path
 import yaml
 import redis
+import ccxt.pro
 
 class ConfigHandler:
     def __init__(self, config_path=None):
@@ -22,7 +23,7 @@ class ConfigHandler:
             self.config = config
 
     def get_config(self, section=None):
-        if self.config == None:
+        if self.config is None:
             self.load_config(self.config_path)
         if section is None:
             return self.config
@@ -31,7 +32,7 @@ class ConfigHandler:
 
     def generate_config(self):
         """
-        Generates a default config
+        Returns a default config
         """
         #current_script_path = Path(__file__).resolve()
         #project_root = current_script_path.parent.parent
@@ -44,6 +45,7 @@ class ConfigHandler:
                 },
                 "redis_db": None
             },
+            
             "exchanges": {
                 "binance": {
                     "properties": {
@@ -56,23 +58,23 @@ class ConfigHandler:
                     },
                     "symbols": {
                         "BTC/USD:BTC": {
-                            "streams": [
-                                {"watchOHLCV": {"options": {}}},
-                                {"watchTicker": {"options": {}}},
-                                {"watchTrades": {"options": {}}},
-                                {"watchOrderBook": {"options": {}}}
-                            ]
-                        },
+                            "streams": {
+                                "watchOHLCV": {"options": {}},
+                                "watchTicker": {"options": {}},
+                                "watchTrades": {"options": {}},
+                                "watchOrderBook": {"options": {}}
+                                }
+                                },
                         "BTC/USDT:USDT": {
-                            "streams": [
-                                {"watchOHLCV": {"options": {}}},
-                                {"watchTicker": {"options": {}}},
-                                {"watchTrades": {"options": {}}},
-                                {"watchOrderBook": {"options": {}}}
-                            ]
-                        }
-                    }
-                },
+                            "streams": {
+                                "watchOHLCV": {"options": {}},
+                                "watchTicker": {"options": {}},
+                                "watchTrades": {"options": {}},
+                                "watchOrderBook": {"options": {}}
+                                }
+                                }
+                                }
+                                },
                 "bitmex": {
                     "properties": {
                         "enableRateLimit": True,
@@ -83,26 +85,62 @@ class ConfigHandler:
                     },
                     "symbols": {
                         "BTC/USD:BTC": {
-                            "streams": [
-                                {"watchOHLCV": {"options": {}}},
-                                {"watchTicker": {"options": {}}},
-                                {"watchTrades": {"options": {}}},
-                                {"watchOrderBook": {"options": {}}}
-                            ]
-                        },
+                            "streams": {
+                                "watchOHLCV": {"options": {}},
+                                "watchTicker": {"options": {}},
+                                "watchTrades": {"options": {}},
+                                "watchOrderBook": {"options": {}}
+                                }
+                                },
                         "BTC/USDT:USDT": {
-                            "streams": [
-                                {"watchOHLCV": {"options": {}}},
-                                {"watchTicker": {"options": {}}},
-                                {"watchTrades": {"options": {}}},
-                                {"watchOrderBook": {"options": {}}}
-                            ]
-                        }
-                    }
-                }
-            }
-        }
-
-        #with open(config_path, 'w') as file:
-        #    yaml.dump(data=data, stream=file, default_flow_style=False)
+                            "streams": {
+                                "watchOHLCV": {"options": {}},
+                                "watchTicker": {"options": {}},
+                                "watchTrades": {"options": {}},
+                                "watchOrderBook": {"options": {}}
+                                }
+                                }
+                                }
+                                }
+                                }
+                                }
         self.config = data
+
+    def valid_config(self, config:dict):
+        '''
+        Verifies primarily configuration structure.
+        Stream / exchange options need to be checked at runtime 
+
+        :param e: 
+        :return: 
+        '''
+
+        top_required_keys = {"exchanges", "consumers"}
+        missing_keys = top_required_keys - set(config.keys())
+        if missing_keys:
+            raise ValueError(f"Missing Top Level Keys: {missing_keys}")
+        
+        if not isinstance(config.get("consumers"), dict):
+            raise TypeError("Consumers value not a dict")
+        if not isinstance(config.get("exchanges"), dict):
+            raise TypeError("Exchanges value not a dict")
+
+        for exchange_name, configs in config.get("exchanges").items():
+            exchange_properties = configs["properties"]
+            if not isinstance(exchange_properties, dict):
+                raise TypeError(f"Exchange properties {exchange_properties} not a dict")
+
+            for symbol, symbol_streams in configs["symbols"].items():
+                if not isinstance(symbol_streams, dict):
+                    raise TypeError(f"Symbol streams: {symbol_streams} not a dict")
+                streams = symbol_streams['streams']
+                if not isinstance(streams, dict):
+                    raise TypeError(f"Streams: {streams} not a dict")
+                
+                for stream_name, stream_options in streams.items():
+                    if not isinstance(stream_options, dict):
+                        raise TypeError(f"Stream Options: {stream_options} not a dict")
+                    options = stream_options["options"]
+                    if not isinstance(options, dict):
+                        raise TypeError(f"Options: {options} not a dict")
+        return True
