@@ -1,64 +1,60 @@
+import logging
 import datetime
 import ccxt.pro
+import sys
+from typing import Dict, Any
 
 from typing import List, Callable, Union, Tuple, Optional
 
+logger = logging.getLogger(__name__)
+
 async def initialize_exchanges(
-    config: dict) -> Tuple[dict[str, ccxt.pro.Exchange], dict[str, ccxt.pro.Exchange]]:
+    config: Dict[str, Any]
+    ) -> Dict[str, ccxt.pro.Exchange]:
     '''
     Initializes and returns a dictionary of CCXT Pro
     exchange objects for each exchange name provided.
-    Only exchanges supported by CCXT Pro are initialized.
-    Unsupported exchanges throw an exception and are skipped.
-    Each exchange object is configured with rate limit enabled,
-    asynchronous support, new updates, and verbosity.
+    Only exchanges and symbols supported by CCXT Pro are initialized.
+    Invalid configs are ignored by ccxt so no need to check
 
-    Does not make sense to initialize multiple times
-
-    :param exchange_names: A list of exchange names (str) to be initialized.
-    :return: A dictionary where keys are exchange names
-             (str) and values are corresponding ccxt.pro.Exchange objects.
-             Only successfully initialized exchanges are included.
+    :param config: A dict to initialize
+    :return:
+        A dict mapping valid exchange names to ccxt.pro.Exchange instances.
     '''
-    valid_exchanges = {}
-    
-    for exchange_name, configs in config['exchanges'].items():
+    valid_exchanges: Dict[str, ccxt.pro.Exchange] = {}
+    for exchange_name, configs in config.get('exchanges',{}).items():
         exchange = None
         try:
             if exchange_name in valid_exchanges.keys():
                 exchange = valid_exchanges[exchange_name]
             elif exchange_name not in ccxt.pro.exchanges:
                 raise AttributeError(f"Invalid exchange: {exchange_name}")
-                # log here
             else:
                 exchange_class = getattr(ccxt.pro, exchange_name)
                 exchange = exchange_class(configs['properties'])
-                # await exchange.close() # WHY DID I DO THIS
                 valid_exchanges[exchange_name] = exchange
                 markets = await exchange.load_markets()
-            
             for symbol, streams in configs['symbols'].items():
                 if symbol not in exchange.symbols:
-                    raise AttributeError("Invalid symbol. Update Config")
-                    # log here
+                    raise AttributeError(f"Invalid symbol: {symbol}")
                 for stream_name, stream_dict in streams["streams"].items():
-                    if not exchange.has[stream_name]:
-                        raise AttributeError("Invalid stream. Update Config")
-                        # log here
-
-        except AttributeError as e:
-            if exchange is not None:
-                await exchange.close()
-            print(str(e))
-            raise e
-            sys.exit("Cannot Continue with invalid options")
-        
+                    support = exchange.has.get(stream_name, None)                       
+                    if stream_name not in exchange.has:
+                        raise AttributeError(f"Undefined stream: {stream_name} Check spelling")
+                    if support is None:
+                        raise AttributeError(f"Method '{stream_name}' is not yet implemented in CCXT")
+                    if support is False:
+                        raise AttributeError(f"Unsupported stream: '{stream_name}' on exchange '{exchange_name}'")
         except Exception as e:
-            print(f"An error occurred while initializing {exchange_name}: {str(e)}")
-            if exchange is not None:
-                await exchange.close()
-            sys.exit("Cannot Continue with invalid options")
-        return valid_exchanges
+            logger.exception("%s",e)
+            for ex in valid_exchanges.values():
+                try:
+                    await ex.close()
+                except Exception:
+                    pass
+            raise
+    return valid_exchanges
+
 
 async def data_producer(
     data_queue,

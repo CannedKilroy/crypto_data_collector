@@ -1,5 +1,10 @@
 import pytest
 
+from src.crypto_data_collector.helpers import ConfigHandler
+from src.crypto_data_collector.producer import initialize_exchanges
+
+
+
 valid_config = {
     "consumers": {
         "archival_storage": {

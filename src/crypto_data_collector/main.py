@@ -4,13 +4,24 @@ import asyncio
 import datetime
 import redis
 import logging
+from pathlib import Path
 
-from crypto_data_collector.helpers import ConfigHandler
+from crypto_data_collector.helpers import ConfigHandler, setup_logger
 from crypto_data_collector.consumer import Consumer
 from crypto_data_collector.producer import data_producer, create_producers, initialize_exchanges
 
+logger = logging.getLogger(__name__)
 
 async def main():
+    log_file_name = "logs.log"
+    
+    main_script_path = Path(__file__).resolve()
+    project_root = main_script_path.parent.parent.parent
+    log_file_path = project_root / "logs" / log_file_name
+
+    setup_logger(log_file_path)
+
+    logger.info('\nScript startup')
 
     config_handler = ConfigHandler()
     config_handler.generate_config()
@@ -46,7 +57,6 @@ async def main():
     finally:
         for exchange_name, exchange in exchange_objects.items():
             await exchange.close()
-        sys.exit(" Bye Bye ")
 
 if __name__ == "__main__":
     asyncio.run(main())

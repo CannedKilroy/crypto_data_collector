@@ -1,8 +1,51 @@
-# Helper functions
 from pathlib import Path
+from typing import Union, Optional
+
+import logging
 import yaml
 import redis
 import ccxt.pro
+
+from logging.handlers import RotatingFileHandler
+
+logger = logging.getLogger(__name__)
+
+def setup_logger(
+    log_file_path: Union[str, Path],
+    level: int = logging.INFO,
+    console: bool = True,
+    console_level: Optional[int] = None,
+    ) -> logging.Logger:
+
+    # Ensure log_file_path is a Path
+    log_file_path = Path(log_file_path)
+
+    # Create parent directories if DNE
+    if not log_file_path.parent.exists():
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    formatter = logging.Formatter(
+    fmt="%(asctime)s %(levelname)s [%(name)s] %(message)s (in %(pathname)s:%(lineno)d)"
+    )
+
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
+    root_logger.setLevel(level)
+
+    file_handler = RotatingFileHandler(
+        filename=str(log_file_path), maxBytes=10_240, backupCount=2
+    )
+    file_handler.setLevel(level)
+    file_handler.setFormatter(formatter)
+    root_logger.addHandler(file_handler)
+
+    if console:
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(console_level or level)
+        console_handler.setFormatter(formatter)
+        root_logger.addHandler(console_handler)
+
+    return root_logger
 
 class ConfigHandler:
     def __init__(self, config_path=None):
