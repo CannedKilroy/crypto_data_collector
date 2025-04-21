@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "Crypto Data pipeline"
 authors = ["CannedKilroy <GenericArt@protonmail.com>"]
 readme = "README.md"
-package-mode = false
 
 
 [tool.poetry.dependencies]
@@ -17,8 +16,10 @@ pyyaml = "^6.0.2"
 pytest = "^8.3.5"
 pytest-asyncio = "^0.26.0"
 
+
 [tool.poetry.scripts]
 crypto-pipeline = "crypto_data_collector.__main__:main"
+
 
 [build-system]
 requires = ["poetry-core"]

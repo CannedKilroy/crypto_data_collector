@@ -38,9 +38,7 @@ async def run_pipeline(
     )
     logger.info("Pipeline startup with user-provided configuration.")
 
-    
     data_queue = asyncio.Queue()
-    
     
     exchange_objects: Dict[str, ccxt.pro.Exchange]
     exchange_objects = {}
@@ -50,7 +48,6 @@ async def run_pipeline(
 
         exchange_objects = await initialize_exchanges(config=config)
         
-        consumer_tasks = [c.run(data_queue) for c in consumers]
         producer_tasks = create_producers(
         data_queue=data_queue,
         config=config,

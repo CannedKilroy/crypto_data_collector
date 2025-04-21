@@ -165,13 +165,11 @@ def valid_config(config:dict):
     :return: Bool whether config is valid
     '''
 
-    top_required_keys = {"exchanges", "consumers"}
+    top_required_keys = {"exchanges"}
     missing_keys = top_required_keys - set(config.keys())
     if missing_keys:
         raise ValueError(f"Missing Top Level Keys: {missing_keys}")
     
-    if not isinstance(config.get("consumers"), dict):
-        raise TypeError("Consumers value not a dict")
     if not isinstance(config.get("exchanges"), dict):
         raise TypeError("Exchanges value not a dict")
 

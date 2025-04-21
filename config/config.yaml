@@ -1,15 +1,3 @@
-# All overrides are held in here
-# Base config for the platform. All User preferences are derived from here
-# Exchange symbol pair is the lowest pair
-# CCXT ignores congis it doesnt recognize
-consumers:
-  archival_storage:
-    valid_streams:
-      - orderbook
-      - trades
-  redis_db:
-    
-    
 exchanges:
   binance:
     properties:
@@ -24,23 +12,23 @@ exchanges:
     symbols:
       "BTC/USD:BTC":
         streams:
-          - watchOHLCV:
+            watchOHLCV:
               options: {}
-          - watchTicker:
+            watchTicker:
               options: {}
-          - watchTrades:
+            watchTrades:
               options: {}
-          - watchOrderBook:
+            watchOrderBook:
               options: {}
       "BTC/USDT:USDT":
         streams:
-          - watchOHLCV:
+            watchOHLCV:
               options: {}
-          - watchTicker:
+            watchTicker:
               options: {}
-          - watchTrades:
+            watchTrades:
               options: {}
-          - watchOrderBook:
+            watchOrderBook:
               options: {}
 
   bitmex:
@@ -54,21 +42,21 @@ exchanges:
     symbols:
       "BTC/USD:BTC":
         streams:
-          - watchOHLCV:
+            watchOHLCV:
               options: {}
-          - watchTicker:
+            watchTicker:
               options: {}
-          - watchTrades:
+            watchTrades:
               options: {}
-          - watchOrderBook:
+            watchOrderBook:
               options: {}
       "BTC/USDT:USDT":
         streams:
-          - watchOHLCV:
+            watchOHLCV:
               options: {}
-          - watchTicker:
+            watchTicker:
               options: {}
-          - watchTrades:
+            watchTrades:
               options: {}
-          - watchOrderBook:
+            watchOrderBook:
               options: {}
