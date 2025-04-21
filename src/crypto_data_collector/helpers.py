@@ -3,7 +3,6 @@ from typing import Union, Optional
 
 import logging
 import yaml
-import redis
 import ccxt.pro
 
 from logging.handlers import RotatingFileHandler

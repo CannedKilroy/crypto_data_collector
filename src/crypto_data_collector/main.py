@@ -54,21 +54,26 @@ async def run_pipeline(
         producer_tasks = create_producers(
         data_queue=data_queue,
         config=config,
-        exchange_objects = exchange_objects,
-        producers=[]
+        exchange_objects = exchange_objects
         )
-
         async with asyncio.TaskGroup() as tg:
-            for task in producer_tasks + consumer_tasks:
-                tg.create_task(task)
-    
+            for producer in producer_tasks:
+                task = producer[0]
+                info = producer[1]
+                tg.create_task(
+                    task,
+                    name = f"Producer:{info['exchange_name']}:{info['symbol_name']}:{info['stream_name']}"
+                    )
+            for consumer in consumers:
+                tg.create_task(
+                    consumer.run(data_queue),
+                    name = f"Consumer:{consumer.name}"
+                )
     except asyncio.CancelledError:
         logger.info("Pipeline cancelled, shutting down...")
-    
     except TypeError as e:
         logger.exception("Pipeline error (likely invalid config): %s", e)
         raise
-    
     finally:
         for ex in exchange_objects.values():
             try:

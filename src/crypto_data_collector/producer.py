@@ -2,9 +2,9 @@ import logging
 import datetime
 import ccxt.pro
 import sys
-from typing import Dict, Any
+import asyncio
 
-from typing import List, Callable, Union, Tuple, Optional
+from typing import List, Callable, Union, Tuple, Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -57,41 +57,76 @@ async def initialize_exchanges(
 
 
 async def data_producer(
-    data_queue,
+    data_queue: asyncio.Queue,
     symbol_name: str,
-    stream_method,
+    stream_method: Callable,
     stream_name:str,
-    stream_options: dict[str, any],
-    meta_data:dict):
-    while True:
-        data = await stream_method(symbol_name, **stream_options)
-        if isinstance(data, list):
-            full_data = data + list(meta_data.values())
-        elif isinstance(data, dict):
-            full_data = data | meta_data
-        await data_queue.put(full_data)
+    stream_options: Dict[str, any],
+    stream_info:Dict[str, any]) -> None:
+    """
+    Continuously fetch data from a CCXT Pro websocket stream and enqueue it.
 
-def create_producers(data_queue, config, exchange_objects, producers):
+    :param data_queue: The shared asyncio.Queue to publish messages to.
+    :param symbol_name: The market symbol (e.g. "BTC/USD").
+    :param stream_method: The CCXT Pro async method (e.g. exchange.watchTrades).
+    :param stream_name: Name of the stream (e.g. "watchTrades").
+    :param stream_options: Keyword args to pass into `stream_method`.
+    :param stream_info: Stream info to merge into each message.
     """
-    Meta Data injects data not in ws response
+    while True:
+        try:
+            data = await stream_method(symbol_name, **stream_options)
+            if isinstance(data, list):
+                full_data = data + list(stream_info.values())
+            elif isinstance(data, dict):
+                full_data = data | stream_info
+            await data_queue.put(full_data)
+        except asyncio.CancelledError:
+            logger.info("Producer for %s.%s cancelled", symbol_name, stream_name)
+            break
+        except Exception as e:
+            logger.exception(
+                "Error in data_producer [%s:%s]: %s", symbol_name, stream_name, e
+            )
+            await asyncio.sleep(1.0)
+
+
+def create_producers(
+    data_queue: asyncio.Queue,
+    config: Dict[str, Any],
+    exchange_objects: Dict[str, ccxt.pro.Exchange],
+    ) -> List:
     """
+    Build and schedule a producer Task for every (exchange, symbol, stream).
+
+    :param data_queue: Shared queue to feed into.
+    :param config: The validated config dict.
+    :param exchange_objects: Mapping exchange_name → ccxt.pro.Exchange instance.
+    :return: A list of Coroutines with their info
+    """
+
+    producers = []
     for exchange_name, exchange in exchange_objects.items():
         for symbol_name, symbol_streams in config['exchanges'][exchange_name]['symbols'].items():
             for stream_name, stream_options in symbol_streams['streams'].items():
-                meta_data = {
+                
+                producer_info = {
                     "exchange_name": exchange_name,
                     "symbol_name": symbol_name,
                     "stream_name": stream_name
                     }
                 
-                stream_options = stream_options['options']
+                stream_options = stream_options.get('options', {})
                 stream_method = getattr(exchange, stream_name)
-                producers.append(data_producer(
+
+                producer = data_producer(
                     data_queue=data_queue,
                     symbol_name=symbol_name,
                     stream_method=stream_method,
                     stream_name=stream_name,
                     stream_options=stream_options,
-                    meta_data=meta_data
-                    ))
+                    stream_info=producer_info
+                    )
+                
+                producers.append((producer, producer_info))
     return producers
