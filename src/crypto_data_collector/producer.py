@@ -71,7 +71,7 @@ async def data_producer(
             full_data = data | meta_data
         await data_queue.put(full_data)
 
-def create_producers(data_queue, config, exchange_objects, consumers, producers):
+def create_producers(data_queue, config, exchange_objects, producers):
     """
     Meta Data injects data not in ws response
     """

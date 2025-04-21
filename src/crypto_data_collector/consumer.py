@@ -1,17 +1,21 @@
 import asyncio
 import logging
+from abc import ABC, abstractmethod
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
-class Consumer:
-    def __init__(self):
-        pass
-        
-    async def consumer_delegator(self, data_queue):    
-        while True:
-            data = await data_queue.get()
-            await self.consumer_1(data)
+class BaseConsumer(ABC):
 
-    async def consumer_1(self, data:dict):
-        print("Consumer 1 Ran")
-        print("Data:", data)
+    @abstractmethod
+    async def process(self, data: Dict[str, Any]) -> None:
+        pass
+
+    async def run(self, queue: asyncio.Queue) -> None:
+        while True:
+            data = await queue.get()
+            try:
+                await self.process(data)
+            except Exception:
+                logger.exception("Error in user consumer %s", self.__class__.__name__)
+                raise
