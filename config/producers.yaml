@@ -1,5 +1,10 @@
+# A Starter config file
+# Naming follows ccxt naming conventions
+# Visit https://github.com/ccxt/ccxt/wiki/manual#symbols-and-market-ids
 exchanges:
   binance:
+    # Override ccxt exchange properties
+    # and exchange specific options
     properties:
       "enableRateLimit": True
       "async_support": True
@@ -32,6 +37,8 @@ exchanges:
               options: {}
 
   bitmex:
+    # Override ccxt exchange properties
+    # and exchange specific options
     properties:
       "enableRateLimit": True
       "async_support": True

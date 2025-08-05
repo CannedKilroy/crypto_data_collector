@@ -1,9 +1,10 @@
 """crypto_data_collector — async producer/consumer pipeline for websocket data."""
 import logging
 
-from .main import run_pipeline
-from .consumer import BaseConsumer
+from .consumer import ConsumerPipeline, BaseConsumer 
+from .producer import ProducerPipeline, DataProducer
 
-__all__ = ["run_pipeline", "BaseConsumer"]
+
+__all__ = ["DataPipeline", "DataProducer", "BaseConsumer", "ConsumerPipeline"]
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
