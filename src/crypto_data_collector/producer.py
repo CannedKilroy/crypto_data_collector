@@ -4,26 +4,22 @@ import asyncio
 
 from typing import List, Callable, Union, Tuple, Optional, Dict, Any, TYPE_CHECKING
 
+from crypto_data_collector.helpers import State, Status
+
 if TYPE_CHECKING:
     from crypto_data_collector.consumer import BaseConsumer
 
 logger = logging.getLogger(__name__)
 
 class ProducerPipeline:
-    def __init__(self) -> None:
+    def __init__(self, data_queue:asyncio.Queue) -> None:
         # Producer pipeline owns the tasks
         self.producers : Dict[str, DataProducer] = {}
-        self.data_queue: asyncio.Queue = asyncio.Queue()
+        self.data_queue: asyncio.Queue = data_queue
     
     async def stop_pipeline(self) -> None:
         for name, producer in self.producers.items():
             self.remove_producer(name)
-
-    def get_producer_state(self, producer_name:str):
-        return self.producers[producer_name].get_status()
-
-    def get_producers(self) -> Dict[str, "DataProducer"]:
-        return self.producers
 
     def get_data_queue(self) -> asyncio.Queue:
         return self.data_queue
@@ -39,8 +35,7 @@ class ProducerPipeline:
             return
         
         self.producers[producer_name] = producer
-        producer.set_status("staged")
-        task = asyncio.create_task(producer.start_loop(), name=producer.get_name())
+        task = asyncio.create_task(producer.start_loop(), name=producer.producer_name)
         producer.task = task
         logger.info("Task [%s] created", producer_name)
     
@@ -52,7 +47,7 @@ class ProducerPipeline:
             return
         
         producer.task.cancel()
-        producer.set_status("cancelled")
+        producer.state.status = Status.CANCELLED
 
         try:
             await producer.task
@@ -60,6 +55,7 @@ class ProducerPipeline:
             pass
         except Exception as e:
             logger.exception("Error shutting down producer [%s]: [%s]", producer_name, e)
+            producer.state.status = Status.ERRORED
         
         self.producers.pop(producer_name, None)
         exch = producer.exchange
@@ -77,15 +73,6 @@ class ProducerPipeline:
 
 class DataProducer:
 
-    # VALID_STATES = {
-    #     "staged",    # Producer is staged but not running
-    #     "running",   # Producer running
-    #     "backoff",   # Producer backing off due to transient error
-    #     "stopped",   # Prodcuer stopped 
-    #     "cancelled", # Producer cancelled
-    #     "error",     # Producer Errored out
-    # }
-
     def __init__(
         self,
         exchange_name:str,
@@ -100,6 +87,10 @@ class DataProducer:
         # These are names passed by you, not the ccxt names
         # Must be unique
         self.producer_name = f"{exchange_name}|{symbol}|{stream_name}"
+        
+        # Statuses are only for information, they are not used for loop control
+        self.state = State()
+        self.state.status = Status.STAGED
 
         self.exchange_name = exchange_name
         self.exchange = exchange
@@ -110,54 +101,40 @@ class DataProducer:
         self.stream_options = stream_options
 
         self.data_queue = data_queue
-
-        self.status: str = "stopped"
         self.task: Optional[asyncio.Task] = None
 
-        # Exponential backoff vars
-        self.timeout = 0
-        self.tries = 0
         self.max_tries = 4
 
     async def start_loop(self) -> None:
-        self.status = "running"
+        self.state.status = Status.RUNNING
         try:
             await self.run()
         except asyncio.CancelledError:
             raise
 
-    def get_name(self) -> str:
-        return self.producer_name
-    
-    def set_status(self, status:str) -> None:
-        # Cancelled status only set on the cancel callback
-        # Statuses are only for information, they are not used for loop control
-        self.status = status
-
     async def run(self) -> None:
-        self.timeout = 1.0
-        self.tries = 0
         while True:
             try:
                 # Blocking await
                 data = await self.stream_method(self.symbol, **self.stream_options)
             except ccxt.OperationFailed as e:
-                # Transient Error
-                self.status = "backoff"
-                self.tries += 1
-                logger.error('OperationFailed for [%s] msg: %s', self.producer_name, repr(e))
+                # Transient Error handle with exponential backoff
+                self.state.status = Status.BACKOFF
+                self.state.tries += 1
+                logger.error('OperationFailed for producer [%s] msg: %s', self.producer_name, repr(e))
                 
-                if self.tries >= self.max_tries:
+                if self.state.tries >= self.max_tries:
                     logger.critical("Max retries exceeded in producer [%s]. Cancelling ... ", self.producer_name)
+                    self.state.status = Status.ERRORED
                     raise asyncio.CancelledError()
                 
-                logger.info("Backing off for %.1f seconds (try #%d)", self.timeout, self.tries)
-                await asyncio.sleep(self.timeout)
+                logger.info("Backing off for %.1f seconds (try #%d)", self.state.timeout, self.state.tries)
+                await asyncio.sleep(self.state.timeout)
 
-                self.timeout *= 2
+                self.state.timeout *= 2
                 continue
             
-            self.status = "running"
+            self.state.status = Status.RUNNING
             # Inject Metadata
             if isinstance(data, list):
                 full_data = {"data": data, "producer": self.producer_name}
@@ -168,5 +145,5 @@ class DataProducer:
                 continue
             self.data_queue.put_nowait(full_data)
 
-            self.timeout = 1.0
-            self.tries = 0
+            self.state.timeout = 1.0
+            self.state.tries = 0

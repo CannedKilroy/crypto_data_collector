@@ -30,12 +30,10 @@ class ExampleConsumer(BaseConsumer):
 					self.data_queue.task_done()
 				
 		except asyncio.CancelledError:
-			logger.info("Consumer [%s] marked as cancelled. Emptying its data queue...", self.name)
+			logger.info("Consumer [%s] marked as cancelled. Greedily emptying its data queue...", self.name)
 			while True:
 				try:
 					data = self.data_queue.get_nowait()
-					######## Do something with the data ########
-					######## Put your code here ################
 				except asyncio.QueueEmpty:
 					logger.info("Consumer [%s] data queue emptied", self.name)
 					break
@@ -61,12 +59,10 @@ class ExampleConsumer2(BaseConsumer):
 					self.data_queue.task_done()
 				
 		except asyncio.CancelledError:
-			logger.info("Consumer [%s] marked as cancelled. Emptying its data queue...", self.name)
+			logger.info("Consumer [%s] marked as cancelled. Greedily emptying its data queue...", self.name)
 			while True:
 				try:
 					data = self.data_queue.get_nowait()
-					######## Do something with the data ########
-					######## Put your code here ################
 				except asyncio.QueueEmpty:
 					logger.info("Consumer [%s] data queue emptied", self.name)
 					break
@@ -98,17 +94,21 @@ async def main():
 	logger.info("Crypto Pipeline Project Startup")
 
 	# Example config, edit as needed or provide override
-	# This Structure isn't enforced
+	# This structure isn't enforced but works nicely due to the natural heirarchy
+	# of Exchange:symbol:stream
 	config_handler = ConfigHandler(project_root=project_root)
 	config = config_handler.get_config()
 
 	# Instantiate Pipelines and Registry
 	registry = Registry()
-	producer_pipeline = ProducerPipeline()
-	data_queue = producer_pipeline.get_data_queue()
-	consumer_pipeline = ConsumerPipeline(data_queue)
+	# This is the main queue between producers and consumer delegator
+	queue = asyncio.Queue()
+
+	producer_pipeline = ProducerPipeline(data_queue=queue)
+	consumer_pipeline = ConsumerPipeline(data_queue=queue)
 
 	# Register all exchanges, symbols, and streams from the config
+	# Data Producer when created: STAGED, RUNNING if running without
 	for exchange_name, exch_data in config["exchanges"].items():
 		await registry.register_exchange(exchange_name, exch_data["properties"])
 		for symbol, symbol_data in exch_data["symbols"].items():
@@ -129,9 +129,10 @@ async def main():
 					stream_options=stream_args,
 					data_queue=producer_pipeline.get_data_queue()
 				)
-
+				
+				# Register producer with producer pipeline and implicitly start producer
 				producer_pipeline.add_producer(
-					producer_name = producer.get_name(),
+					producer_name = producer.producer_name,
 					producer = producer
 				)
 
@@ -139,7 +140,7 @@ async def main():
 	exampleconsumer = ExampleConsumer()
 	exampleconsumer2 = ExampleConsumer2()
 
-	# register each example consumer instance and create tasks
+	# Register consumer with consumer pipeline and implicitly start consumer
 	consumer_pipeline.add_consumer(name="ExampleConsumer", consumer=exampleconsumer)
 	consumer_pipeline.add_consumer(name="ExampleConsumer2", consumer=exampleconsumer2)
 
@@ -150,29 +151,32 @@ async def main():
 
 	await consumer_pipeline.remove_consumer("ExampleConsumer")
 
-	await producer_pipeline.remove_producer("binance|BTC/USD:BTC|watchOHLCV")
-	await producer_pipeline.remove_producer("binance|BTC/USD:BTC|watchTicker")
-	await producer_pipeline.remove_producer("binance|BTC/USD:BTC|watchTrades")
-	await producer_pipeline.remove_producer("binance|BTC/USD:BTC|watchOrderBook")
+	print(producer_pipeline.producers["binance|BTC/USD:BTC|watchOHLCV"].state)
 
-	await producer_pipeline.remove_producer("binance|BTC/USDT:USDT|watchOHLCV")
-	await producer_pipeline.remove_producer("binance|BTC/USDT:USDT|watchTicker")
-	await producer_pipeline.remove_producer("binance|BTC/USDT:USDT|watchTrades")
-	await producer_pipeline.remove_producer("binance|BTC/USDT:USDT|watchOrderBook")
-	# Binance should close now
+	# await producer_pipeline.remove_producer("binance|BTC/USD:BTC|watchOHLCV")
+	# await producer_pipeline.remove_producer("binance|BTC/USD:BTC|watchTicker")
+	# await producer_pipeline.remove_producer("binance|BTC/USD:BTC|watchTrades")
+	# await producer_pipeline.remove_producer("binance|BTC/USD:BTC|watchOrderBook")
 
-	await producer_pipeline.remove_producer("bitmex|BTC/USD:BTC|watchOHLCV")
-	await producer_pipeline.remove_producer("bitmex|BTC/USD:BTC|watchTicker")
-	await producer_pipeline.remove_producer("bitmex|BTC/USD:BTC|watchTrades")
-	await producer_pipeline.remove_producer("bitmex|BTC/USD:BTC|watchOrderBook")
+	# await producer_pipeline.remove_producer("binance|BTC/USDT:USDT|watchOHLCV")
+	# await producer_pipeline.remove_producer("binance|BTC/USDT:USDT|watchTicker")
+	# await producer_pipeline.remove_producer("binance|BTC/USDT:USDT|watchTrades")
+	# await producer_pipeline.remove_producer("binance|BTC/USDT:USDT|watchOrderBook")
+	# # Producer Pipeline will automatically close exchange connections when no 
+	# # producers are attached. Binance should close now
 
-	await producer_pipeline.remove_producer("bitmex|BTC/USDT:USDT|watchOHLCV")
-	await producer_pipeline.remove_producer("bitmex|BTC/USDT:USDT|watchTicker")
-	await producer_pipeline.remove_producer("bitmex|BTC/USDT:USDT|watchTrades")
-	await producer_pipeline.remove_producer("bitmex|BTC/USDT:USDT|watchOrderBook")
-	# Bitmex should close now
+	# await producer_pipeline.remove_producer("bitmex|BTC/USD:BTC|watchOHLCV")
+	# await producer_pipeline.remove_producer("bitmex|BTC/USD:BTC|watchTicker")
+	# await producer_pipeline.remove_producer("bitmex|BTC/USD:BTC|watchTrades")
+	# await producer_pipeline.remove_producer("bitmex|BTC/USD:BTC|watchOrderBook")
 
-	await consumer_pipeline.remove_consumer("ExampleConsumer2")
+	# await producer_pipeline.remove_producer("bitmex|BTC/USDT:USDT|watchOHLCV")
+	# await producer_pipeline.remove_producer("bitmex|BTC/USDT:USDT|watchTicker")
+	# await producer_pipeline.remove_producer("bitmex|BTC/USDT:USDT|watchTrades")
+	# await producer_pipeline.remove_producer("bitmex|BTC/USDT:USDT|watchOrderBook")
+	# # Bitmex should close now
+
+	# await consumer_pipeline.remove_consumer("ExampleConsumer2")
 
 	await asyncio.Event().wait()	
 

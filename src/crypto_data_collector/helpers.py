@@ -1,17 +1,33 @@
 # Optional Helper Functions
 
+import time
 import logging
 import yaml
 
 from pathlib import Path
+from enum import Enum, auto
+from dataclasses import dataclass, field
 from typing import Union, Optional, Dict, Any, List
 from logging.handlers import RotatingFileHandler
 
 logger = logging.getLogger(__name__)
 
-# Dictionary traversal helpers
-# -----------------------------------------------------------------------------
-# -----------------------------------------------------------------------------
+class Status(Enum):
+    STAGED = auto()
+    RUNNING = auto()
+    BACKOFF = auto()
+    CANCELLED = auto()
+    ERRORED = auto()
+
+@dataclass(frozen=False)
+class State():
+    status: Status | None = None
+    tries: int = 0
+    timeout: float = 0.0
+    last_error: str | None = None
+    since: float = field(default_factory=lambda: time.time())
+
+
 def get_nested(data: dict, path: list, default=None):
     """
     Gets a nested key in a dict following a path
