@@ -98,7 +98,7 @@ class BaseConsumer(ABC):
             raise
 
     @abstractmethod
-    async def run(self, data: Dict[str, Any]) -> None:
+    async def run(self) -> None:
         pass
 
     def get_name(self) -> str:
