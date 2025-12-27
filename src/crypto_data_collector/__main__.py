@@ -153,10 +153,37 @@ async def main():
 
 	print(producer_pipeline.producers["binance|BTC/USD:BTC|watchOHLCV"].state)
 
-	# await producer_pipeline.remove_producer("binance|BTC/USD:BTC|watchOHLCV")
-	# await producer_pipeline.remove_producer("binance|BTC/USD:BTC|watchTicker")
-	# await producer_pipeline.remove_producer("binance|BTC/USD:BTC|watchTrades")
-	# await producer_pipeline.remove_producer("binance|BTC/USD:BTC|watchOrderBook")
+	await producer_pipeline.remove_producer("binance|BTC/USD:BTC|watchOHLCV")
+	await producer_pipeline.remove_producer("binance|BTC/USD:BTC|watchTicker")
+	await producer_pipeline.remove_producer("binance|BTC/USD:BTC|watchTrades")
+	await producer_pipeline.remove_producer("binance|BTC/USD:BTC|watchOrderBook")
+	
+	# Add a new producer
+	# #######################################################
+	await registry.register_exchange("kraken")
+	await registry.register_symbol("kraken","BTC/USD")
+	await registry.register_stream("kraken", "BTC/USD", "watchTicker")
+	
+	exch_obj = registry.get_exchange_object("kraken")
+	stream_method = registry.get_stream_method("kraken", "BTC/USD", "watchTicker")
+	
+	producer = DataProducer(
+		exchange_name="kraken",
+		exchange=exch_obj,
+		symbol="BTC/USD",
+		stream_name="watchTicker",
+		stream_method=stream_method,
+		stream_options={},
+		data_queue=producer_pipeline.get_data_queue()
+		)
+				
+	# Register producer with producer pipeline and implicitly start producer
+	producer_pipeline.add_producer(
+		producer_name = producer.producer_name,
+		producer = producer
+	)
+	# #######################################################
+	print(producer_pipeline.producers)
 
 	# await producer_pipeline.remove_producer("binance|BTC/USDT:USDT|watchOHLCV")
 	# await producer_pipeline.remove_producer("binance|BTC/USDT:USDT|watchTicker")

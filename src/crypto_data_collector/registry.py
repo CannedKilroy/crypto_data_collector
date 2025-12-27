@@ -108,7 +108,8 @@ class Registry:
         exchange_name: str,
         symbol: str,
         stream_name: str,
-        stream_options:Optional[Dict[str,Any]] = None
+        stream_options:Optional[Dict[str, Any]] = None,
+        stream_consumer_options:Optional[Dict[str, Any]] = None
         ) -> None:
         """
         Register a stream (e.g., watch_ticker, watch_trades) for a symbol on an exchange.
@@ -147,7 +148,8 @@ class Registry:
         
         self.registered["exchanges"][exchange_name]["symbols"][symbol]["streams"][stream_name] = {
             "stream_method" : stream_method,
-            "stream_options" : stream_options or {}
+            "stream_options" : stream_options or {},
+            "stream_consumer_options" : stream_consumer_options or {}
             }
         logger.info("Stream: [%s] for Symbol: [%s] registered to exchange [%s]", stream_name, symbol, exchange_name)
 
