@@ -29,6 +29,7 @@ class ProducerPipeline:
         producer_name:str,
         producer:"DataProducer"
         ) -> None:
+        # Note: Producers should be registered before adding
 
         if producer_name in self.producers:
             logger.warning("Producer %s already added, skipping", producer_name)
@@ -136,13 +137,9 @@ class DataProducer:
             
             self.state.status = Status.RUNNING
             # Inject Metadata
-            if isinstance(data, list):
-                full_data = {"data": data, "producer": self.producer_name}
-            elif isinstance(data, dict):
-                full_data = data | {"producer": self.producer_name}
-            else:
-                logger.warning("Unsupported data type from stream: [%s]", self.producer_name)
-                continue
+
+            full_data = {"data": data, "producer": self.producer_name}
+
             self.data_queue.put_nowait(full_data)
 
             self.state.timeout = 1.0

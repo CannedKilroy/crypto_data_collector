@@ -109,7 +109,7 @@ class Registry:
         symbol: str,
         stream_name: str,
         stream_options:Optional[Dict[str, Any]] = None,
-        stream_consumer_options:Optional[Dict[str, Any]] = None
+        consumer_options:Optional[Dict[str, Any]] = None
         ) -> None:
         """
         Register a stream (e.g., watch_ticker, watch_trades) for a symbol on an exchange.
@@ -119,6 +119,7 @@ class Registry:
             symbol (str): Trading symbol.
             stream_name (str): Name of the stream method in ccxt.pro.
             stream_options (Dict[str, Any], optional): Arguments passed to the stream method.
+            consumer_options (Dict[str, Any], optional): Config data for consumers
 
         Raises:
             UnregisteredExchange: If exchange is not registered.
@@ -131,7 +132,7 @@ class Registry:
         if not self.exchange_registered(exchange_name):
             logger.exception("Exchange: [%s] not registered", exchange_name)
             raise UnregisteredExchange(exchange_name)
-        if not self.register_symbol(exchange_name, symbol):
+        if not self.symbol_registered(symbol, exchange_name):
             logger.exception("Symbol: [%s] of exchange: [%s] not registered", symbol, exchange_name)
             raise UnregisteredSymbol(symbol, exchange_name)            
         if self.stream_registered(stream_name, symbol, exchange_name):
@@ -149,7 +150,7 @@ class Registry:
         self.registered["exchanges"][exchange_name]["symbols"][symbol]["streams"][stream_name] = {
             "stream_method" : stream_method,
             "stream_options" : stream_options or {},
-            "stream_consumer_options" : stream_consumer_options or {}
+            "consumer_options" : consumer_options or {}
             }
         logger.info("Stream: [%s] for Symbol: [%s] registered to exchange [%s]", stream_name, symbol, exchange_name)
 
@@ -185,6 +186,7 @@ class Registry:
             Bool
         """
         if not self.exchange_registered(exchange_name):
+            logger.exception("Exchange: [%s] not registered", exchange_name)
             raise UnregisteredExchange(exchange_name)
 
         if self.registered["exchanges"][exchange_name]["symbols"].get(symbol, None) is not None:
@@ -205,9 +207,11 @@ class Registry:
             Bool
         """
         if not self.exchange_registered(exchange_name):
+            logger.exception("Exchange: [%s] not registered", exchange_name)
             raise UnregisteredExchange(exchange_name)
         
         if not self.symbol_registered(symbol, exchange_name):
+            logger.exception("Symbol: [%s] already registered to exchange: [%s]", symbol, exchange_name)
             raise UnregisteredSymbol(symbol, exchange_name)
 
         if self.registered["exchanges"][exchange_name]["symbols"][symbol]["streams"].get(stream_name, None) is not None:
@@ -228,7 +232,9 @@ class Registry:
             Bool
         """
         if not self.exchange_registered(exchange_name):
+            logger.exception("Exchange: [%s] not registered", exchange_name)
             raise UnregisteredExchange(exchange_name)
+        
         symbols = self.registered["exchanges"][exchange_name]["symbols"]
         for symbol_info in symbols.values():
             streams = symbol_info.get("streams", {})
@@ -248,6 +254,7 @@ class Registry:
             bool
         """
         if not self.exchange_registered(exchange_name):
+            logger.exception("Exchange: [%s] not registered", exchange_name)
             raise UnregisteredExchange(exchange_name)
         return self.registered["exchanges"][exchange_name]["object"]
     
@@ -266,8 +273,19 @@ class Registry:
         Return:
             Callable
         """
+        if not self.exchange_registered(exchange_name):
+            logger.exception("Exchange: [%s] not registered", exchange_name)
+            raise UnregisteredExchange(exchange_name)
+        
+        if not self.symbol_registered(symbol, exchange_name):
+            logger.exception("Symbol: [%s] of exchange: [%s] not registered", symbol, exchange_name)
+            raise UnregisteredSymbol(symbol, exchange_name)  
+        
         if not self.stream_registered(stream_name, symbol, exchange_name):
-            raise UnregisteredStream(stream_name, symbol, exchange)
+            logger.exception(
+                "Stream: [%s] of Symbol: [%s] of Exchange: [%s] not registered", stream_name, symbol, exchange_name 
+                )
+            raise UnregisteredStream(stream_name, symbol, exchange_name)
         return self.registered["exchanges"][exchange_name]["symbols"][symbol]["streams"][stream_name]["stream_method"]
     
     def get_stream_options(
@@ -276,10 +294,43 @@ class Registry:
         symbol,
         stream_name
         ):
+        if not self.exchange_registered(exchange_name):
+            logger.exception("Exchange: [%s] not registered", exchange_name)
+            raise UnregisteredExchange(exchange_name)
+        
+        if not self.symbol_registered(symbol, exchange_name):
+            logger.exception("Symbol: [%s] of exchange: [%s] not registered", symbol, exchange_name)
+            raise UnregisteredSymbol(symbol, exchange_name)  
+        
         if not self.stream_registered(stream_name, symbol, exchange_name):
-            raise UnregisteredStream(stream_name, symbol, exchange)
+            logger.exception(
+                "Stream: [%s] of Symbol: [%s] of Exchange: [%s] not registered", stream_name, symbol, exchange_name 
+                )
+            raise UnregisteredStream(stream_name, symbol, exchange_name)
+
         return self.registered["exchanges"][exchange_name]["symbols"][symbol]["streams"][stream_name]["stream_options"]
 
+    def get_stream_consumer_options(
+        self,
+        exchange_name,
+        symbol,
+        stream_name
+        ):
+        if not self.exchange_registered(exchange_name):
+            logger.exception("Exchange: [%s] not registered", exchange_name)
+            raise UnregisteredExchange(exchange_name)
+        
+        if not self.symbol_registered(symbol, exchange_name):
+            logger.exception("Symbol: [%s] of exchange: [%s] not registered", symbol, exchange_name)
+            raise UnregisteredSymbol(symbol, exchange_name)  
+        
+        if not self.stream_registered(stream_name, symbol, exchange_name):
+            logger.exception(
+                "Stream: [%s] of Symbol: [%s] of Exchange: [%s] not registered", stream_name, symbol, exchange_name 
+                )
+            raise UnregisteredStream(stream_name, symbol, exchange_name)
+        print(self.registered["exchanges"][exchange_name]["symbols"][symbol]["streams"][stream_name])
+        return self.registered["exchanges"][exchange_name]["symbols"][symbol]["streams"][stream_name]["consumer_options"]
 
 
 # Registry Unregister methods

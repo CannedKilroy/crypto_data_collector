@@ -109,6 +109,7 @@ async def main():
 
 	# Register all exchanges, symbols, and streams from the config
 	# Data Producer when created: STAGED, RUNNING if running without
+	# Registry holds config data for the producers
 	for exchange_name, exch_data in config["exchanges"].items():
 		await registry.register_exchange(exchange_name, exch_data["properties"])
 		for symbol, symbol_data in exch_data["symbols"].items():
